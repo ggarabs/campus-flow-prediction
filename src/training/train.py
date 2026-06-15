@@ -1,14 +1,21 @@
 from pathlib import Path
 import torch
 import torch.nn as nn
-
-from torch.utils.data import (
-    DataLoader,
-    ConcatDataset,
-)
+from torch.utils.data import (DataLoader, ConcatDataset)
 
 from dataset import TemporalGraphDataset
 from model import SimpleTemporalGNN
+
+DRIVE_OUTPUT_DIR = Path("/content/drive/MyDrive/seu-projeto/checkpoints")
+DRIVE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+CHECKPOINT_PATH = DRIVE_OUTPUT_DIR / "temporal_gnn_checkpoint.pt"
+FINAL_MODEL_PATH = DRIVE_OUTPUT_DIR / "temporal_gnn_final.pt"
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Running in device: {device}")
+
+kwargs_loader = {"pin_memory": True} if torch.cuda.is_available() else {}
 
 PROCESSED_DIR_FEATURES = Path("data/processed/features")
 PROCESSED_DIR_GRAPH = Path("data/processed/graph")
@@ -18,6 +25,7 @@ BATCH_SIZE = 8
 HIDDEN_DIM = 64
 LR = 1e-3
 EPOCHS = 20
+SAVE_EVERY_EPOCHS = 2
 
 train_days = []
 val_days = []
@@ -108,12 +116,16 @@ train_loader = DataLoader(
     train_dataset,
     batch_size=BATCH_SIZE,
     shuffle=True,
+    num_workers=2,
+    **kwargs_loader
 )
 
 val_loader = DataLoader(
     val_dataset,
     batch_size=BATCH_SIZE,
     shuffle=False,
+    num_workers=2,
+    **kwargs_loader
 )
 
 num_features = train_days[0].shape[-1]
@@ -122,7 +134,7 @@ model = SimpleTemporalGNN(
     num_features=num_features,
     hidden_dim=HIDDEN_DIM,
     window_size=WINDOW_SIZE,
-).to("cpu")
+).to(device)
 
 optimizer = torch.optim.Adam(
     model.parameters(),
@@ -131,25 +143,33 @@ optimizer = torch.optim.Adam(
 
 criterion = nn.MSELoss()
 
-edge_index = edge_index.to("cpu")
+edge_index = edge_index.to(device)
 
-for epoch in range(EPOCHS):
+start_epoch = 0
+
+if CHECKPOINT_PATH.exists():
+    print(f"Checkopoint finded at {CHECKPOINT_PATH}. Loading progress...")
+    checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
+
+    model.load_state_dict(checkpoint['model_state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+    start_epoch = checkpoint['epoch'] + 1
+    print(f'Resuming training from Époch {start_epoch + 1}')
+else:
+    print("No checkpoint finded. Initializing training from begin.")
+
+for epoch in range(start_epoch, EPOCHS):
     model.train()
-
     train_loss = 0.0
 
     for x, y in train_loader:
-        x = x.to("cpu")
-        y = y.to("cpu")
+        x = x.to(device, non_blocking=True)
+        y = y.to(device, non_blocking=True)
 
         optimizer.zero_grad()
-
         pred = model(x, edge_index)
-
         loss = criterion(pred, y)
-
         loss.backward()
-
         optimizer.step()
 
         train_loss += loss.item()
@@ -157,18 +177,14 @@ for epoch in range(EPOCHS):
     train_loss /= len(train_loader)
 
     model.eval()
-
     val_loss = 0.0
-
     with torch.no_grad():
         for x, y in val_loader:
-            x = x.to("cpu")
-            y = y.to("cpu")
+            x = x.to(device, non_blocking=True)
+            y = y.to(device, non_blocking=True)
 
             pred = model(x, edge_index)
-
             loss = criterion(pred, y)
-
             val_loss += loss.item()
 
     val_loss /= len(val_loader)
@@ -179,9 +195,19 @@ for epoch in range(EPOCHS):
         f"val={val_loss:.4f}"
     )
 
-torch.save(
-    model.state_dict(),
-    "temporal_gnn.pt"
-)
+    if (epoch + 1) % SAVE_EVERY_EPOCHS == 0 or (epoch + 1) == EPOCHS:
+        print(f"Saving Epoch {epoch+1} checkpoint in Drive...")
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'train_loss': train_loss,
+            'val_loss': val_loss
+        }, CHECKPOINT_PATH)
 
-print("Model saved.")
+print("Model saved successfully.")
+torch.save(model.state_dict(), FINAL_MODEL_PATH)
+
+if CHECKPOINT_PATH.exists():
+    CHECKPOINT_PATH.unlink()
+    print("Temporary checkpoint removed. Final model saved.")

@@ -4,7 +4,9 @@ import networkx as nx
 import torch
 from torch_geometric.utils import from_networkx
 
-OUTPUT_DIR = Path("data/processed")
+local_training = False
+
+OUTPUT_DIR = Path("data/processed") if local_training else 
 DISTANCE_GRAPH_PATH = "data/raw/graph/distances-graph.graphml"
 WIDTH_GRAPH_PATH = "data/raw/graph/width-graph.graphml"
 
