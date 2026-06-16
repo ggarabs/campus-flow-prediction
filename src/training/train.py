@@ -17,8 +17,17 @@ print(f"Running in device: {device}")
 
 kwargs_loader = {"pin_memory": True} if torch.cuda.is_available() else {}
 
-PROCESSED_DIR_FEATURES = Path("data/processed/features")
-PROCESSED_DIR_GRAPH = Path("data/processed/graph")
+PROCESSED_DIR_FEATURES = (
+    Path("/content/drive/MyDrive/data/processed/features")
+    if device == torch.device("cuda")
+    else Path("data/processed/features")
+)
+
+PROCESSED_DIR_GRAPH = (
+    Path("/content/drive/MyDrive/data/processed/graph")
+    if device == torch.device("cuda")
+    else Path("data/processed/graph")
+)
 
 WINDOW_SIZE = 12
 BATCH_SIZE = 8
