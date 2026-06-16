@@ -48,60 +48,21 @@ class SimpleTemporalGNN(nn.Module):
 
         B, T, N, F_dim = x.shape
 
-        embeddings = []
+        x_flattened = x.view(B * T * N, F_dim)
 
-        for t in range(T):
+        h = self.gcn1(x_flattened, edge_index)
+        h = F.relu(h)
 
-            x_t = x[:, t]
+        h = self.gcn2(h, edge_index)
+        h = F.relu(h)
 
-            batch_embeddings = []
+        h = h.view(B, T, N, -1)
 
-            for b in range(B):
+        h = h.permute(0, 2, 1, 3)
 
-                h = x_t[b]
-
-                h = self.gcn1(
-                    h,
-                    edge_index
-                )
-
-                h = F.relu(h)
-
-                h = self.gcn2(
-                    h,
-                    edge_index
-                )
-
-                h = F.relu(h)
-
-                batch_embeddings.append(h)
-
-            batch_embeddings = torch.stack(
-                batch_embeddings
-            )
-
-            embeddings.append(batch_embeddings)
-
-        h = torch.stack(
-            embeddings,
-            dim=1
-        )
-
-        h = h.permute(
-            0,
-            2,
-            1,
-            3
-        )
-
-        h = h.reshape(
-            B,
-            N,
-            T * h.shape[-1]
-        )
+        h = h.reshape(B, N, T * h.shape[-1])
 
         out = self.temporal(h)
-
         out = out.squeeze(-1)
 
         return out
