@@ -6,7 +6,7 @@ from torch.utils.data import (DataLoader, ConcatDataset)
 from dataset import TemporalGraphDataset
 from model import SimpleTemporalGNN
 
-DRIVE_OUTPUT_DIR = Path("/content/drive/MyDrive/seu-projeto/checkpoints")
+DRIVE_OUTPUT_DIR = Path("/content/drive/MyDrive/flow-prediction-model/checkpoints")
 DRIVE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 CHECKPOINT_PATH = DRIVE_OUTPUT_DIR / "temporal_gnn_checkpoint.pt"
