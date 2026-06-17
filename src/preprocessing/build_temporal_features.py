@@ -9,20 +9,22 @@ LOCAL_RUN = False
 
 if LOCAL_RUN:
     PROCESSED_DIR = Path("data/processed/features")
+    GRAPH_DIR = Path("data/processed/graph")
     FLOW_DIR = Path("data/processed/flow")
     N_JOBS = 1
 else:    
     DRIVE_DIR = Path("/content/drive/MyDrive")
+    GRAPH_DIR = DRIVE_DIR / "data/processed/graph"
     PROCESSED_DIR = DRIVE_DIR / "data/processed/features"
     FLOW_DIR = DRIVE_DIR / "data/processed/flow"
     N_JOBS = -1
 
 
-with open(PROCESSED_DIR / "edge_to_idx.pkl", "rb") as f:
+with open(GRAPH_DIR / "edge_to_idx.pkl", "rb") as f:
     edge_to_idx = pickle.load(f)
 
 NUM_EDGES = len(edge_to_idx)
-static_features = torch.load(PROCESSED_DIR / "static_features.pt")
+static_features = torch.load(GRAPH_DIR / "static_features.pt")
 NUM_DYNAMIC_FEATURES = 3
 
 def process_single_file(file_idx):
