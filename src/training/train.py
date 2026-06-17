@@ -200,8 +200,8 @@ for epoch in range(start_epoch, EPOCHS):
 
     print(
         f"Epoch {epoch+1}/{EPOCHS} | "
-        f"train={train_loss:.4f} | "
-        f"val={val_loss:.4f}"
+        f"train={train_loss:.10f} | "
+        f"val={val_loss:.10f}"
     )
 
     if (epoch + 1) % SAVE_EVERY_EPOCHS == 0 or (epoch + 1) == EPOCHS:
