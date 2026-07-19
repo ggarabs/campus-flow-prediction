@@ -4,7 +4,7 @@ import torch.nn as nn
 from torch.utils.data import (DataLoader, ConcatDataset)
 
 from dataset import TemporalGraphDataset
-from model import SimpleTemporalGNN
+from model import TemporalGCN
 
 DRIVE_OUTPUT_DIR = Path("/content/drive/MyDrive/flow-prediction-model/checkpoints")
 DRIVE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,6 +32,7 @@ PROCESSED_DIR_GRAPH = (
 WINDOW_SIZE = 12
 BATCH_SIZE = 8
 HIDDEN_DIM = 64
+FORECAST_HORIZON = 6
 LR = 1e-3
 EPOCHS = 20
 SAVE_EVERY_EPOCHS = 2
@@ -40,21 +41,21 @@ train_days = []
 val_days = []
 test_days = []
 
-for day in range(8):
+for day in range(42):
     X_day = torch.load(
         PROCESSED_DIR_FEATURES / f"dynamic_features-{day}.pt"
     )
 
     train_days.append(X_day)
 
-for day in range(8, 10):
+for day in range(42, 51):
     X_day = torch.load(
         PROCESSED_DIR_FEATURES / f"dynamic_features-{day}.pt"
     )
 
     val_days.append(X_day)
 
-for day in range(10, 12):
+for day in range(51, 60):
     X_day = torch.load(
         PROCESSED_DIR_FEATURES / f"dynamic_features-{day}.pt"
     )
@@ -139,10 +140,11 @@ val_loader = DataLoader(
 
 num_features = train_days[0].shape[-1]
 
-model = SimpleTemporalGNN(
+model = TemporalGCN(
     num_features=num_features,
     hidden_dim=HIDDEN_DIM,
     window_size=WINDOW_SIZE,
+    forecast_horizon=FORECAST_HORIZON
 ).to(device)
 
 optimizer = torch.optim.Adam(
