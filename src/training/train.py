@@ -149,7 +149,7 @@ num_features = train_days[0].shape[-1]
 model = TemporalGCN(
     num_features=num_features,
     hidden_dim=HIDDEN_DIM,
-    window_size=WINDOW_SIZE
+    window_size=WINDOW_SIZE,
     forecast_horizon=FORECAST_HORIZON
 ).to(device)
 
