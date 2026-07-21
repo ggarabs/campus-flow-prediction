@@ -25,7 +25,7 @@ class TemporalGCN(nn.Module):
             
             for t in range(T):
                 xt = x[b, t]
-                h = self.tgcn(xt, edge_index, h)
+                h = self.tgcn(X=xt, edge_index=edge_index, H=h)
                 h = F.relu(h)
             
             out = self.linear(h)
