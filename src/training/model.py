@@ -4,16 +4,15 @@ import torch.nn.functional as F
 from torch_geometric_temporal.nn.recurrent import TGCN
 
 class TemporalGCN(nn.Module):
-    def __init__(self, num_features, hidden_dim, window_size, forecast_horizon):
+    def __init__(self, num_features, hidden_dim, window_size):
         super(TemporalGCN, self).__init__()
         
         self.window_size = window_size
         self.hidden_dim = hidden_dim
-        self.forecast_horizon = forecast_horizon
         
         self.tgcn = TGCN(in_channels=num_features, out_channels=hidden_dim)
         
-        self.linear = nn.Linear(hidden_dim, forecast_horizon)
+        self.linear = nn.Linear(hidden_dim)
 
     def forward(self, x, edge_index):
         B, T, N, F_in = x.shape

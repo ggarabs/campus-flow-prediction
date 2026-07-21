@@ -32,7 +32,6 @@ PROCESSED_DIR_GRAPH = (
 WINDOW_SIZE = 12
 BATCH_SIZE = 8
 HIDDEN_DIM = 64
-FORECAST_HORIZON = 6
 LR = 1e-3
 EPOCHS = 20
 SAVE_EVERY_EPOCHS = 2
@@ -149,8 +148,7 @@ num_features = train_days[0].shape[-1]
 model = TemporalGCN(
     num_features=num_features,
     hidden_dim=HIDDEN_DIM,
-    window_size=WINDOW_SIZE,
-    forecast_horizon=FORECAST_HORIZON
+    window_size=WINDOW_SIZE
 ).to(device)
 
 optimizer = torch.optim.Adam(
@@ -184,7 +182,7 @@ for epoch in range(start_epoch, EPOCHS):
         y = y.to(device, non_blocking=True)
 
         optimizer.zero_grad()
-        pred = model(x, edge_index)
+        pred = model(x, edge_index).squeeze(-1)
         loss = criterion(pred, y)
         loss.backward()
         optimizer.step()
@@ -200,7 +198,7 @@ for epoch in range(start_epoch, EPOCHS):
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
 
-            pred = model(x, edge_index)
+            pred = model(x, edge_index).squeeze(-1)
             loss = criterion(pred, y)
             val_loss += loss.item()
 
