@@ -12,7 +12,7 @@ class TemporalGCN(nn.Module):
         
         self.tgcn = TGCN(in_channels=num_features, out_channels=hidden_dim)
         
-        self.linear = nn.Linear(hidden_dim)
+        self.linear = nn.Linear(hidden_dim, 1)
 
     def forward(self, x, edge_index):
         B, T, N, F_in = x.shape
