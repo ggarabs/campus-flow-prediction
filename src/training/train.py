@@ -30,8 +30,9 @@ PROCESSED_DIR_GRAPH = (
 )
 
 WINDOW_SIZE = 12
-BATCH_SIZE = 8
+BATCH_SIZE = 32
 HIDDEN_DIM = 64
+FORECAST_HORIZON = 1
 LR = 1e-3
 EPOCHS = 20
 SAVE_EVERY_EPOCHS = 2
@@ -149,6 +150,7 @@ model = TemporalGCN(
     num_features=num_features,
     hidden_dim=HIDDEN_DIM,
     window_size=WINDOW_SIZE
+    forecast_horizon=FORECAST_HORIZON
 ).to(device)
 
 optimizer = torch.optim.Adam(
@@ -157,6 +159,8 @@ optimizer = torch.optim.Adam(
 )
 
 criterion = nn.MSELoss()
+
+scaler = torch.amp.GradScaler('cuda') if device.type == 'cuda' else None
 
 edge_index = edge_index.to(device)
 
@@ -182,10 +186,20 @@ for epoch in range(start_epoch, EPOCHS):
         y = y.to(device, non_blocking=True)
 
         optimizer.zero_grad()
-        pred = model(x, edge_index).squeeze(-1)
-        loss = criterion(pred, y)
-        loss.backward()
-        optimizer.step()
+
+        if scaler is not None:
+                    with torch.amp.autocast('cuda'):
+                        pred = model(x, edge_index).squeeze(-1)
+                        loss = criterion(pred, y)
+                    
+                    scaler.scale(loss).backward()
+                    scaler.step(optimizer)
+                    scaler.update()
+        else:
+            pred = model(x, edge_index).squeeze(-1)
+            loss = criterion(pred, y)
+            loss.backward()
+            optimizer.step()
 
         train_loss += loss.item()
 
@@ -198,8 +212,14 @@ for epoch in range(start_epoch, EPOCHS):
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
 
-            pred = model(x, edge_index).squeeze(-1)
-            loss = criterion(pred, y)
+            if device.type == 'cuda':
+                with torch.amp.autocast('cuda'):
+                    pred = model(x, edge_index).squeeze(-1)
+                    loss = criterion(pred, y)
+            else:
+                pred = model(x, edge_index).squeeze(-1)
+                loss = criterion(pred, y)
+                
             val_loss += loss.item()
 
     val_loss /= len(val_loader)
