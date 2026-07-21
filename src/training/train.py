@@ -42,25 +42,31 @@ val_days = []
 test_days = []
 
 for day in range(42):
-    X_day = torch.load(
-        PROCESSED_DIR_FEATURES / f"dynamic_features-{day}.pt"
-    )
-
-    train_days.append(X_day)
+    try:
+        X_day = torch.load(
+            PROCESSED_DIR_FEATURES / f"dynamic_features-{day}.pt"
+        )
+        train_days.append(X_day)
+    except Exception as e:
+        print(e)
 
 for day in range(42, 51):
-    X_day = torch.load(
-        PROCESSED_DIR_FEATURES / f"dynamic_features-{day}.pt"
-    )
-
-    val_days.append(X_day)
+    try:
+        X_day = torch.load(
+            PROCESSED_DIR_FEATURES / f"dynamic_features-{day}.pt"
+        )
+        val_days.append(X_day)
+    except Exception as e:
+        print(e)
 
 for day in range(51, 60):
-    X_day = torch.load(
-        PROCESSED_DIR_FEATURES / f"dynamic_features-{day}.pt"
-    )
-
-    test_days.append(X_day)
+    try:
+        X_day = torch.load(
+            PROCESSED_DIR_FEATURES / f"dynamic_features-{day}.pt"
+        )
+        test_days.append(X_day)
+    except Exception as e:
+        print(e)
 
 edge_index = torch.load(
     PROCESSED_DIR_GRAPH / "edge_index.pt"
