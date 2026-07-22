@@ -164,7 +164,7 @@ scaler = torch.amp.GradScaler('cuda') if device.type == 'cuda' else None
 
 edge_index = edge_index.to(device)
 
-start_epoch = 15
+start_epoch = 19
 
 if CHECKPOINT_PATH.exists():
     print(f"Checkopoint finded at {CHECKPOINT_PATH}. Loading progress...")
