@@ -132,13 +132,17 @@ patience_counter = 0
 
 if CHECKPOINT_PATH.exists():
     print(f"Checkpoint found at {CHECKPOINT_PATH}. Loading progress...")
-    checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
-
-    model.load_state_dict(checkpoint["model_state_dict"])
-    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-    start_epoch = checkpoint["epoch"] + 1
-    best_val_loss = checkpoint.get("best_val_loss", float("inf"))
-    print(f"Resuming training from Epoch {start_epoch + 1}")
+    try:
+        checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        start_epoch = checkpoint["epoch"] + 1
+        best_val_loss = checkpoint.get("best_val_loss", float("inf"))
+        print(f"Resuming training from Epoch {start_epoch + 1}")
+    except Exception as e:
+        print(f"Failed to load checkpoint ({e}). Removing corrupted file...")
+        CHECKPOINT_PATH.unlink(missing_ok=True)
+        print("Starting training from scratch.")
 else:
     print("No checkpoint found. Initializing training from scratch.")
 
@@ -216,20 +220,10 @@ for epoch in range(start_epoch, EPOCHS):
             break
 
 if CHECKPOINT_PATH.exists():
-    print(f"Checkpoint found in {CHECKPOINT_PATH}. Loading...")
-    try:
-        checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
-        model.load_state_dict(checkpoint["model_state_dict"])
-        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-        start_epoch = checkpoint["epoch"] + 1
-        best_val_loss = checkpoint.get("best_val_loss", float("inf"))
-        print(f"Resuming training on epoch {start_epoch + 1}")
-    except Exception as e:
-        print(f"Failed to load checkpoint ({e}). Removing corrupted file...")
-        CHECKPOINT_PATH.unlink(missing_ok=True)
-        print("Iniciando treinamento do zero.")
-else:
-    print("No checkpoint found. Starting training from scratch.")
+    best_checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
+    model.load_state_dict(best_checkpoint["model_state_dict"])
+    CHECKPOINT_PATH.unlink()
+    print("Temporary checkpoint removed.")
 
 torch.save(model.state_dict(), FINAL_MODEL_PATH)
 print(f"Best final model saved successfully to {FINAL_MODEL_PATH}.")
