@@ -29,7 +29,6 @@ PROCESSED_DIR_GRAPH = (
     else Path("data/processed/graph")
 )
 
-# Hyperparameters
 WINDOW_SIZE = 12
 BATCH_SIZE = 32
 HIDDEN_DIM = 64
@@ -43,6 +42,8 @@ PATIENCE = 5
 train_days = []
 val_days = []
 test_days = []
+
+print("Normalizing data...")
 
 for day in range(42):
     try:
@@ -115,6 +116,8 @@ model = TemporalGCN(
     dropout=DROPOUT,
 ).to(device)
 
+print("Initializing optimizer...")
+
 optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 criterion = nn.MSELoss()
@@ -137,6 +140,7 @@ if CHECKPOINT_PATH.exists():
 else:
     print("No checkpoint found. Initializing training from scratch.")
 
+print("Start training...")
 for epoch in range(start_epoch, EPOCHS):
     model.train()
     train_loss = 0.0

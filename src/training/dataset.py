@@ -6,6 +6,7 @@ class TemporalGraphDataset(Dataset):
         self,
         X,
         window_size=12,
+        forecast_horizon,
         target_feature_idx=0,
     ):
         self.X = X
@@ -13,15 +14,20 @@ class TemporalGraphDataset(Dataset):
         self.target_feature_idx = target_feature_idx
 
     def __len__(self):
-        return len(self.X) - self.window_size
+        return len(self.X) - self.window_size - self.forecast_horizon + 1
 
     def __getitem__(self, idx):
         x = self.X[idx : idx + self.window_size]
 
         y = self.X[
-            idx + self.window_size,
+            idx
+            + self.window_size : idx
+            + self.window_size
+            + self.forecast_horizon,
             :,
             self.target_feature_idx,
         ]
 
+        y = y.permute(1, 0)
+        
         return x, y
