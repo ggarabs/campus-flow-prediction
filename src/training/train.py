@@ -81,6 +81,7 @@ train_datasets = [
     TemporalGraphDataset(
         X_day,
         window_size=WINDOW_SIZE,
+        forecast_horizon=FORECAST_HORIZON,
         target_feature_idx=0,
     )
     for X_day in train_days
@@ -90,6 +91,7 @@ val_datasets = [
     TemporalGraphDataset(
         X_day,
         window_size=WINDOW_SIZE,
+        forecast_horizon=FORECAST_HORIZON,
         target_feature_idx=0,
     )
     for X_day in val_days
@@ -153,14 +155,14 @@ for epoch in range(start_epoch, EPOCHS):
 
         if scaler is not None:
             with torch.amp.autocast("cuda"):
-                pred = model(x, edge_index).squeeze(-1)
+                pred = model(x, edge_index)
                 loss = criterion(pred, y)
 
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
         else:
-            pred = model(x, edge_index).squeeze(-1)
+            pred = model(x, edge_index)
             loss = criterion(pred, y)
             loss.backward()
             optimizer.step()
@@ -178,10 +180,10 @@ for epoch in range(start_epoch, EPOCHS):
 
             if device.type == "cuda":
                 with torch.amp.autocast("cuda"):
-                    pred = model(x, edge_index).squeeze(-1)
+                    pred = model(x, edge_index)
                     loss = criterion(pred, y)
             else:
-                pred = model(x, edge_index).squeeze(-1)
+                pred = model(x, edge_index)
                 loss = criterion(pred, y)
 
             val_loss += loss.item()
@@ -214,10 +216,20 @@ for epoch in range(start_epoch, EPOCHS):
             break
 
 if CHECKPOINT_PATH.exists():
-    best_checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
-    model.load_state_dict(best_checkpoint["model_state_dict"])
-    CHECKPOINT_PATH.unlink()
-    print("Temporary checkpoint removed.")
+    print(f"Checkpoint found in {CHECKPOINT_PATH}. Loading...")
+    try:
+        checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        start_epoch = checkpoint["epoch"] + 1
+        best_val_loss = checkpoint.get("best_val_loss", float("inf"))
+        print(f"Resuming training on epoch {start_epoch + 1}")
+    except Exception as e:
+        print(f"Failed to load checkpoint ({e}). Removing corrupted file...")
+        CHECKPOINT_PATH.unlink(missing_ok=True)
+        print("Iniciando treinamento do zero.")
+else:
+    print("No checkpoint found. Starting training from scratch.")
 
 torch.save(model.state_dict(), FINAL_MODEL_PATH)
 print(f"Best final model saved successfully to {FINAL_MODEL_PATH}.")
