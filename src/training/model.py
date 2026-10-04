@@ -4,7 +4,7 @@ from torch_geometric_temporal.nn.recurrent import TGCN
 
 
 class TemporalGCN(nn.Module):
-    def __init__(self, num_features, hidden_dim, window_size, forecast_horizon):
+    def __init__(self, num_features, hidden_dim, window_size, forecast_horizon, dropout):
         super().__init__()
 
         self.window_size = window_size
@@ -12,16 +12,14 @@ class TemporalGCN(nn.Module):
         self.forecast_horizon = forecast_horizon
 
         self.tgcn = TGCN(in_channels=num_features, out_channels=hidden_dim)
-
+        self.dropout = nn.Dropout(dropout)
         self.linear = nn.Linear(hidden_dim, forecast_horizon)
 
     def forward(self, x, edge_index):
         B, T, N, F_in = x.shape
 
         edge_index_batched = edge_index.repeat(1, B)
-        shift = (
-            torch.arange(B, device=x.device).repeat_interleave(edge_index.shape[1]) * N
-        )
+        shift = torch.arange(B, device=x.device).repeat_interleave(edge_index.shape[1]) * N
         edge_index_batched = edge_index_batched + shift.unsqueeze(0)
 
         h = None
@@ -29,6 +27,7 @@ class TemporalGCN(nn.Module):
             xt = x[:, t, :, :].reshape(B * N, F_in)
             h = self.tgcn(X=xt, edge_index=edge_index_batched, H=h)
 
+        h = self.dropout(h)
         out = self.linear(h)
         out = out.reshape(B, N, self.forecast_horizon)
 

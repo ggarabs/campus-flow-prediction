@@ -2,7 +2,7 @@
 select = ["E", "F", "UP", "I"]
 ignore = []
 
-line-length = 88
+line-length = 95
 
 exclude = [
     ".git",

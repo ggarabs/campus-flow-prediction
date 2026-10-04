@@ -13,7 +13,7 @@ CHECKPOINT_PATH = DRIVE_OUTPUT_DIR / "temporal_gnn_checkpoint.pt"
 FINAL_MODEL_PATH = DRIVE_OUTPUT_DIR / "temporal_gnn_final.pt"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"Running in device: {device}")
+print(f"Running on device: {device}")
 
 kwargs_loader = {"pin_memory": True} if torch.cuda.is_available() else {}
 
@@ -29,13 +29,16 @@ PROCESSED_DIR_GRAPH = (
     else Path("data/processed/graph")
 )
 
+# Hyperparameters
 WINDOW_SIZE = 12
 BATCH_SIZE = 32
 HIDDEN_DIM = 64
 FORECAST_HORIZON = 15
 LR = 1e-3
+WEIGHT_DECAY = 1e-4
+DROPOUT = 0.2
 EPOCHS = 20
-SAVE_EVERY_EPOCHS = 2
+PATIENCE = 5
 
 train_days = []
 val_days = []
@@ -67,13 +70,10 @@ edge_index = torch.load(PROCESSED_DIR_GRAPH / "edge_index.pt")
 X_train_all = torch.cat(train_days, dim=0)
 
 mean = X_train_all.mean(dim=(0, 1), keepdim=True)
-
 std = X_train_all.std(dim=(0, 1), keepdim=True)
 
 train_days = [(X - mean) / (std + 1e-8) for X in train_days]
-
 val_days = [(X - mean) / (std + 1e-8) for X in val_days]
-
 test_days = [(X - mean) / (std + 1e-8) for X in test_days]
 
 train_datasets = [
@@ -95,7 +95,6 @@ val_datasets = [
 ]
 
 train_dataset = ConcatDataset(train_datasets)
-
 val_dataset = ConcatDataset(val_datasets)
 
 train_loader = DataLoader(
@@ -113,31 +112,30 @@ model = TemporalGCN(
     hidden_dim=HIDDEN_DIM,
     window_size=WINDOW_SIZE,
     forecast_horizon=FORECAST_HORIZON,
+    dropout=DROPOUT,
 ).to(device)
 
-optimizer = torch.optim.Adam(
-    model.parameters(),
-    lr=LR,
-)
+optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
 
 criterion = nn.MSELoss()
-
 scaler = torch.amp.GradScaler("cuda") if device.type == "cuda" else None
-
 edge_index = edge_index.to(device)
 
-start_epoch = 19
+start_epoch = 0
+best_val_loss = float("inf")
+patience_counter = 0
 
 if CHECKPOINT_PATH.exists():
-    print(f"Checkopoint finded at {CHECKPOINT_PATH}. Loading progress...")
+    print(f"Checkpoint found at {CHECKPOINT_PATH}. Loading progress...")
     checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
 
     model.load_state_dict(checkpoint["model_state_dict"])
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
     start_epoch = checkpoint["epoch"] + 1
-    print(f"Resuming training from Époch {start_epoch + 1}")
+    best_val_loss = checkpoint.get("best_val_loss", float("inf"))
+    print(f"Resuming training from Epoch {start_epoch + 1}")
 else:
-    print("No checkpoint finded. Initializing training from begin.")
+    print("No checkpoint found. Initializing training from scratch.")
 
 for epoch in range(start_epoch, EPOCHS):
     model.train()
@@ -188,8 +186,10 @@ for epoch in range(start_epoch, EPOCHS):
 
     print(f"Epoch {epoch + 1}/{EPOCHS} | train={train_loss:.10f} | val={val_loss:.10f}")
 
-    if (epoch + 1) % SAVE_EVERY_EPOCHS == 0 or (epoch + 1) == EPOCHS:
-        print(f"Saving Epoch {epoch + 1} checkpoint in Drive...")
+    if val_loss < best_val_loss:
+        best_val_loss = val_loss
+        patience_counter = 0
+        print(f"--> Validation loss improved to {val_loss:.8f}. Saving best checkpoint...")
         torch.save(
             {
                 "epoch": epoch,
@@ -197,13 +197,23 @@ for epoch in range(start_epoch, EPOCHS):
                 "optimizer_state_dict": optimizer.state_dict(),
                 "train_loss": train_loss,
                 "val_loss": val_loss,
+                "best_val_loss": best_val_loss,
             },
             CHECKPOINT_PATH,
         )
+    else:
+        patience_counter += 1
+        print(f"--> No validation improvement ({patience_counter}/{PATIENCE})")
 
-print("Model saved successfully.")
-torch.save(model.state_dict(), FINAL_MODEL_PATH)
+        if patience_counter >= PATIENCE:
+            print(f"\nEarly stopping triggered at Epoch {epoch + 1}!")
+            break
 
 if CHECKPOINT_PATH.exists():
+    best_checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
+    model.load_state_dict(best_checkpoint["model_state_dict"])
     CHECKPOINT_PATH.unlink()
-    print("Temporary checkpoint removed. Final model saved.")
+    print("Temporary checkpoint removed.")
+
+torch.save(model.state_dict(), FINAL_MODEL_PATH)
+print(f"Best final model saved successfully to {FINAL_MODEL_PATH}.")
