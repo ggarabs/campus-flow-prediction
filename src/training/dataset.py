@@ -16,9 +16,7 @@ class TemporalGraphDataset(Dataset):
         return len(self.X) - self.window_size
 
     def __getitem__(self, idx):
-        x = self.X[
-            idx : idx + self.window_size
-        ]
+        x = self.X[idx : idx + self.window_size]
 
         y = self.X[
             idx + self.window_size,

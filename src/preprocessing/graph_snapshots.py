@@ -5,8 +5,10 @@ import pandas as pd
 def normalize_node(n):
     return str(n)
 
+
 def edge_key(u, v):
     return tuple(sorted((normalize_node(u), normalize_node(v))))
+
 
 G = nx.read_graphml("data/raw/graph/distances-graph.graphml")
 G1 = nx.read_graphml("data/raw/graph/width-graph.graphml")
@@ -21,7 +23,7 @@ for i in range(0, 69):
             "queue": 0,
             "entered": 0,
             "distance": data["label"],
-            "width": 0  
+            "width": 0,
         }
 
     for u, v, data in G1.edges(data=True):
@@ -32,12 +34,11 @@ for i in range(0, 69):
         else:
             print("aresta no width não existe:", key)
 
-    df = pd.read_csv(f'data/raw/flow/flow-log-{i}.csv')
+    df = pd.read_csv(f"data/raw/flow/flow-log-{i}.csv")
 
     snapshots = []
 
     for t, group in df.groupby("timestamp"):
-
         for _, row in group.iterrows():
             key = edge_key(row["u"], row["v"])
 
@@ -50,12 +51,7 @@ for i in range(0, 69):
             current_state[key]["entered"] = row["entered_this_step"]
 
         for (u, v), data in current_state.items():
-            snapshots.append({
-                "time": t,
-                "u": u,
-                "v": v,
-                **data
-            })
+            snapshots.append({"time": t, "u": u, "v": v, **data})
 
     df_final = pd.DataFrame(snapshots)
-    df_final.to_csv(f'data/processed/data{i}.csv', index=False)
+    df_final.to_csv(f"data/processed/data{i}.csv", index=False)
