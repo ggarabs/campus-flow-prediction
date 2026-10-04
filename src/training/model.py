@@ -24,11 +24,10 @@ class TemporalGCN(nn.Module):
         
         h = None
         for t in range(T):
-                xt = x[:, t, :, :].reshape(B*N, F_in)
-                h = self.tgcn(X=xt, edge_index=edge_index_batched, H=h)
-                h = F.relu(h)
+            xt = x[:, t, :, :].reshape(B*N, F_in)
+            h = self.tgcn(X=xt, edge_index=edge_index_batched, H=h)
             
         out = self.linear(h)
         out = out.reshape(B, N, self.forecast_horizon)
                             
-        return F.relu(out)
+        return out
