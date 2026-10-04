@@ -1,5 +1,6 @@
 from torch.utils.data import Dataset
 
+
 class TemporalGraphDataset(Dataset):
     def __init__(
         self,

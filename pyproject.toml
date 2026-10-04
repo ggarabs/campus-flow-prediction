@@ -1,0 +1,12 @@
+[tool.ruff]
+select = ["E", "F", "UP", "I"]
+ignore = []
+
+line-length = 88
+
+exclude = [
+    ".git",
+    ".venv",
+    "build",
+    "dist",
+]

@@ -1,10 +1,10 @@
 from pathlib import Path
+
 import torch
 import torch.nn as nn
-from torch.utils.data import (DataLoader, ConcatDataset)
-
 from dataset import TemporalGraphDataset
 from model import TemporalGCN
+from torch.utils.data import ConcatDataset, DataLoader
 
 DRIVE_OUTPUT_DIR = Path("/content/drive/MyDrive/flow-prediction-model/checkpoints")
 DRIVE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -32,7 +32,7 @@ PROCESSED_DIR_GRAPH = (
 WINDOW_SIZE = 12
 BATCH_SIZE = 32
 HIDDEN_DIM = 64
-FORECAST_HORIZON = 1
+FORECAST_HORIZON = 15
 LR = 1e-3
 EPOCHS = 20
 SAVE_EVERY_EPOCHS = 2

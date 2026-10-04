@@ -1,6 +1,7 @@
 import networkx as nx
 import pandas as pd
 
+
 def normalize_node(n):
     return str(n)
 

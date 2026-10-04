@@ -1,11 +1,11 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch_geometric_temporal.nn.recurrent import TGCN
+
 
 class TemporalGCN(nn.Module):
     def __init__(self, num_features, hidden_dim, window_size, forecast_horizon):
-        super(TemporalGCN, self).__init__()
+        super().__init__()
         
         self.window_size = window_size
         self.hidden_dim = hidden_dim

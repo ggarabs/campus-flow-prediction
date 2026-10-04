@@ -1,6 +1,7 @@
-import torch
 import subprocess
 import sys
+
+import torch
 
 print("Verificando versões do ambiente...")
 
