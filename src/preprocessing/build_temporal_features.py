@@ -69,14 +69,12 @@ def process_single_file(file_idx):
 
 
 if __name__ == "__main__":
-    file_indices = range(12, 69)
+    file_indices = range(70)
 
     if N_JOBS == 1:
         for idx in file_indices:
             process_single_file(idx)
     else:
-        Parallel(n_jobs=N_JOBS)(
-            delayed(process_single_file)(idx) for idx in file_indices
-        )
+        Parallel(n_jobs=N_JOBS)(delayed(process_single_file)(idx) for idx in file_indices)
 
     print("Job finished!")
