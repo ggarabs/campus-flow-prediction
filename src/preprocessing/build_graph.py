@@ -1,12 +1,11 @@
-from pathlib import Path
 import pickle
+from pathlib import Path
+
 import networkx as nx
 import torch
 from torch_geometric.utils import from_networkx
 
-local_training = False
-
-OUTPUT_DIR = Path("data/processed") if local_training else 
+OUTPUT_DIR = Path("data/processed")
 DISTANCE_GRAPH_PATH = "data/raw/graph/distances-graph.graphml"
 WIDTH_GRAPH_PATH = "data/raw/graph/width-graph.graphml"
 
@@ -31,22 +30,13 @@ for u, v, data in G_distance.edges(data=True):
         v,
         distance=distance,
         width=width,
-)
+    )
 
 LG = nx.line_graph(G)
-line_nodes = [
-    tuple(sorted(edge))
-    for edge in LG.nodes()
-]
+line_nodes = [tuple(sorted(edge)) for edge in LG.nodes()]
 
-edge_to_idx = {
-    edge: idx
-    for idx, edge in enumerate(line_nodes)
-}
-idx_to_edge = {
-    idx: edge
-    for edge, idx in edge_to_idx.items()
-}
+edge_to_idx = {edge: idx for idx, edge in enumerate(line_nodes)}
+idx_to_edge = {idx: edge for edge, idx in edge_to_idx.items()}
 
 pyg_graph = from_networkx(LG)
 edge_index = pyg_graph.edge_index
@@ -60,30 +50,23 @@ for edge in line_nodes:
     distance = float(data.get("distance", 0.0))
     width = float(data.get("width", 1.0))
 
-    static_features.append([
-        distance,
-        width,
-    ])
+    static_features.append(
+        [
+            distance,
+            width,
+        ]
+    )
 
-static_features = torch.tensor(
-    static_features,
-    dtype=torch.float32
-)
+static_features = torch.tensor(static_features, dtype=torch.float32)
 
 print("static feature shape:", static_features.shape)
 
 with open(OUTPUT_DIR / "line_graph.pkl", "wb") as f:
     pickle.dump(LG, f)
 
-torch.save(
-    edge_index,
-    OUTPUT_DIR / "edge_index.pt"
-)
+torch.save(edge_index, OUTPUT_DIR / "edge_index.pt")
 
-torch.save(
-    static_features,
-    OUTPUT_DIR / "static_features.pt"
-)
+torch.save(static_features, OUTPUT_DIR / "static_features.pt")
 
 with open(OUTPUT_DIR / "edge_to_idx.pkl", "wb") as f:
     pickle.dump(edge_to_idx, f)
