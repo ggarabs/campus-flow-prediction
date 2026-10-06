@@ -3,8 +3,20 @@ from pathlib import Path
 import torch
 import torch.nn as nn
 from dataset import TemporalGraphDataset
-from model import TemporalGCN
+from model import Seq2SeqTGCN, TemporalGCN
 from torch.utils.data import ConcatDataset, DataLoader
+
+USE_SEQ2SEQ = True
+
+WINDOW_SIZE = 36
+BATCH_SIZE = 32
+HIDDEN_DIM = 256
+FORECAST_HORIZON = 15
+LR = 1e-3
+WEIGHT_DECAY = 1e-4
+DROPOUT = 0.2
+EPOCHS = 40
+PATIENCE = 10
 
 DRIVE_OUTPUT_DIR = Path("/content/drive/MyDrive/flow-prediction-model/checkpoints")
 DRIVE_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -28,16 +40,6 @@ PROCESSED_DIR_GRAPH = (
     if device == torch.device("cuda")
     else Path("data/processed/graph")
 )
-
-WINDOW_SIZE = 12
-BATCH_SIZE = 32
-HIDDEN_DIM = 64
-FORECAST_HORIZON = 15
-LR = 1e-3
-WEIGHT_DECAY = 1e-4
-DROPOUT = 0.2
-EPOCHS = 20
-PATIENCE = 5
 
 train_days = []
 val_days = []
@@ -110,19 +112,32 @@ val_loader = DataLoader(
 
 num_features = train_days[0].shape[-1]
 
-model = TemporalGCN(
-    num_features=num_features,
-    hidden_dim=HIDDEN_DIM,
-    window_size=WINDOW_SIZE,
-    forecast_horizon=FORECAST_HORIZON,
-    dropout=DROPOUT,
-).to(device)
+if USE_SEQ2SEQ:
+    print("Modo selecionado: Seq2SeqTGCN (Auto-regressivo)")
+    model = Seq2SeqTGCN(
+        num_features=num_features,
+        hidden_dim=HIDDEN_DIM,
+        forecast_horizon=FORECAST_HORIZON,
+        dropout=DROPOUT,
+    ).to(device)
+    criterion = nn.L1Loss()
+else:
+    print("Modo selecionado: TemporalGCN (Projeção Direta Standard)")
+    model = TemporalGCN(
+        num_features=num_features,
+        hidden_dim=HIDDEN_DIM,
+        window_size=WINDOW_SIZE,
+        forecast_horizon=FORECAST_HORIZON,
+        dropout=DROPOUT,
+    ).to(device)
+    criterion = nn.MSELoss()
 
-print("Initializing optimizer...")
-
+print("Initializing optimizer & scheduler...")
 optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    optimizer, mode="min", factor=0.5, patience=3
+)
 
-criterion = nn.MSELoss()
 scaler = torch.amp.GradScaler("cuda") if device.type == "cuda" else None
 edge_index = edge_index.to(device)
 
@@ -136,6 +151,8 @@ if CHECKPOINT_PATH.exists():
         checkpoint = torch.load(CHECKPOINT_PATH, map_location=device)
         model.load_state_dict(checkpoint["model_state_dict"])
         optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        if "scheduler_state_dict" in checkpoint and scheduler is not None:
+            scheduler.load_state_dict(checkpoint["scheduler_state_dict"])
         start_epoch = checkpoint["epoch"] + 1
         best_val_loss = checkpoint.get("best_val_loss", float("inf"))
         print(f"Resuming training from Epoch {start_epoch + 1}")
@@ -194,7 +211,12 @@ for epoch in range(start_epoch, EPOCHS):
 
     val_loss /= len(val_loader)
 
-    print(f"Epoch {epoch + 1}/{EPOCHS} | train={train_loss:.10f} | val={val_loss:.10f}")
+    scheduler.step(val_loss)
+    current_lr = optimizer.param_groups[0]["lr"]
+
+    print(
+        f"Epoch {epoch + 1}/{EPOCHS} | train={train_loss:.8f} | val={val_loss:.8f} | lr={current_lr:.6f}"
+    )
 
     if val_loss < best_val_loss:
         best_val_loss = val_loss
@@ -205,6 +227,7 @@ for epoch in range(start_epoch, EPOCHS):
                 "epoch": epoch,
                 "model_state_dict": model.state_dict(),
                 "optimizer_state_dict": optimizer.state_dict(),
+                "scheduler_state_dict": scheduler.state_dict(),
                 "train_loss": train_loss,
                 "val_loss": val_loss,
                 "best_val_loss": best_val_loss,
