@@ -18,7 +18,7 @@ print(f"Running on device: {device}")
 kwargs_loader = {"pin_memory": True} if torch.cuda.is_available() else {}
 
 PROCESSED_DIR_FEATURES = (
-    Path("/content/drive/MyDrive/data/processed/features")
+    Path("/content/drive/MyDrive/data/processed/features/v2")
     if device == torch.device("cuda")
     else Path("data/processed/features")
 )
